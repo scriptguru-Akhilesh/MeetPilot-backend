@@ -9,6 +9,28 @@ import { upload } from "../middleware/upload";
 const router = Router();
 router.use(authMiddleware);
 
+function findParticipantEmail(
+  name: string,
+  participants: { name: string; email: string }[],
+): string {
+  const normalizedName = name.trim().toLowerCase();
+  const match = participants.find(
+    (participant) => participant.name.trim().toLowerCase() === normalizedName,
+  );
+
+  return match?.email?.trim() || "";
+}
+
+function fallbackActionEmail(
+  participants: { email: string }[],
+): string {
+  return (
+    participants.find((participant) => participant.email?.trim())?.email.trim() ||
+    process.env.SMTP_USER?.trim() ||
+    "unassigned@mom.local"
+  );
+}
+
 router.post(
   "/",
   upload.single("transcript"),
@@ -54,14 +76,22 @@ router.post(
         momStatus: "generated",
       });
 
+      const defaultAssigneeEmail = fallbackActionEmail(parsedParticipants);
       const actionDocs = await ActionItem.insertMany(
-        mom.actionItems.map((item) => ({
+        mom.actionItems.map((item) => {
+          const assignee = item.assignee?.trim() || "Unassigned";
+
+          return {
           meetingId: meeting._id,
-          task: item.task,
-          assignee: item.assignee,
-          assigneeEmail: item.assigneeEmail,
+          task: item.task?.trim() || "Update task description",
+          assignee,
+          assigneeEmail:
+            item.assigneeEmail?.trim() ||
+            findParticipantEmail(assignee, parsedParticipants) ||
+            defaultAssigneeEmail,
           dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
-        })),
+          };
+        }),
       );
 
       meeting.actionItems = actionDocs.map((a) => a._id);
