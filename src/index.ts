@@ -14,7 +14,12 @@ import webhookRouter from "./routes/webhook";
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+const allowed = ["http://localhost:3000", "https://meet-pilot-phi.vercel.app"];
+
+app.use(cors({
+  origin: allowed,
+  credentials: true
+}));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
