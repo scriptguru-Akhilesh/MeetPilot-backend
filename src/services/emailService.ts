@@ -78,11 +78,6 @@ export async function sendMOM(
     title: meeting.title,
     to,
     participantEmails: meeting.participants.map((participant) => participant.email),
-    actionAssigneeEmails: actions.map((action) => ({
-      task: action.task,
-      assignee: action.assignee,
-      assigneeEmail: action.assigneeEmail,
-    })),
   });
 
   const info = await transporter.sendMail({

@@ -25,7 +25,7 @@ export interface MomResult {
   actionItems: Array<{
     task: string;
     assignee: string;
-    assigneeEmail: string;
+    assigneeEmail?: string;
     dueDate?: string | null;
   }>;
   tags: string[];
@@ -41,21 +41,6 @@ function safeDate(
   return Number.isNaN(parsed.getTime())
     ? undefined
     : parsed.toISOString().split("T")[0];
-}
-
-function findEmailForName(
-  name: string,
-  participants: IParticipant[]
-): string {
-  const normalized = name.trim().toLowerCase();
-
-  const match = participants.find(
-    (participant) =>
-      participant.name.trim().toLowerCase() ===
-      normalized
-  );
-
-  return match?.email ?? "";
 }
 
 export async function generateMOM(
@@ -94,7 +79,6 @@ Expected format:
     {
       "task": "",
       "assignee": "",
-      "assigneeEmail": "",
       "dueDate": ""
     }
   ],
@@ -157,12 +141,7 @@ Expected format:
             assignee:
               item.assignee || "Unassigned",
 
-            assigneeEmail:
-              item.assigneeEmail ||
-              findEmailForName(
-                item.assignee,
-                participants
-              ),
+            assigneeEmail: item.assigneeEmail || undefined,
 
             dueDate:
               safeDate(item.dueDate) ?? null,

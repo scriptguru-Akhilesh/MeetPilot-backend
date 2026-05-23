@@ -21,11 +21,6 @@ router.post("/send/:meetingId", async (req: AuthRequest, res: Response) => {
       meetingId: meeting._id,
       requestedBy: req.user!.id,
       participantEmails: meeting.participants.map((participant) => participant.email),
-      actionAssigneeEmails: actions.map((action) => ({
-        task: action.task,
-        assignee: action.assignee,
-        assigneeEmail: action.assigneeEmail,
-      })),
     });
     await sendMOM(meeting as any, actions as any);
     meeting.emailStatus = "sent";

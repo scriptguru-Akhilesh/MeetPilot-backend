@@ -15,30 +15,6 @@ function formatDuration(ms: number): string {
   return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
-function findParticipantEmail(
-  name: string,
-  participants: { name: string; email: string }[],
-): string {
-  const normalizedName = name.trim().toLowerCase();
-  const match = participants.find(
-    (participant) => participant.name.trim().toLowerCase() === normalizedName,
-  );
-
-  return match?.email?.trim() || "";
-}
-
-function fallbackActionEmail(
-  hostEmail?: string,
-  participants: { email: string }[] = [],
-): string {
-  return (
-    hostEmail?.trim() ||
-    participants.find((participant) => participant.email?.trim())?.email.trim() ||
-    process.env.SMTP_USER?.trim() ||
-    "unassigned@mom.local"
-  );
-}
-
 export async function generateMomForRecallBot(botId: string): Promise<void> {
   const startedAtMs = Date.now();
   const meeting = await Meeting.findOne({ recallBotId: botId });
@@ -100,74 +76,22 @@ export async function generateMomForRecallBot(botId: string): Promise<void> {
     await meeting.save();
 
     const host = await User.findById(meeting.owner).lean();
-    const defaultAssigneeEmail = fallbackActionEmail(host?.email, meeting.participants);
-    const fallbackAssigneeEmails: string[] = [];
-    const actionEmailDebug: Array<{
-      task: string;
-      assignee: string;
-      assigneeEmail: string;
-      source: string;
-      aiAssigneeEmail?: string;
-    }> = [];
     const actionItems = mom.actionItems.map((item) => {
       const assignee = item.assignee?.trim() || "Unassigned";
-      const aiAssigneeEmail = item.assigneeEmail?.trim();
-      const participantEmail = findParticipantEmail(assignee, meeting.participants);
-      const assigneeEmail =
-        aiAssigneeEmail ||
-        participantEmail ||
-        defaultAssigneeEmail;
-      const source = aiAssigneeEmail
-        ? "ai"
-        : participantEmail
-          ? "participant_match"
-          : "fallback";
-
-      if (!aiAssigneeEmail) {
-        fallbackAssigneeEmails.push(`${assignee} <${assigneeEmail}>`);
-      }
-
-      actionEmailDebug.push({
-        task: item.task?.trim() || "Update task description",
-        assignee,
-        assigneeEmail,
-        source,
-        aiAssigneeEmail,
-      });
 
       return {
         meetingId: meeting._id,
         task: item.task?.trim() || "Update task description",
         assignee,
-        assigneeEmail,
+        assigneeEmail: item.assigneeEmail?.trim() || undefined,
         dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
       };
-    });
-
-    console.log("[MOM automation] action assignee email resolution", {
-      botId,
-      meetingId: meeting._id,
-      hostEmail: host?.email,
-      participants: meeting.participants.map((participant) => ({
-        name: participant.name,
-        email: participant.email,
-      })),
-      defaultAssigneeEmail,
-      actionEmailDebug,
     });
 
     await ActionItem.deleteMany({ meetingId: meeting._id });
     const actionDocs = actionItems.length
       ? await ActionItem.insertMany(actionItems)
       : [];
-
-    if (fallbackAssigneeEmails.length > 0) {
-      console.log("[MOM automation] filled missing assignee emails", {
-        botId,
-        meetingId: meeting._id,
-        fallbackAssigneeEmails,
-      });
-    }
 
     meeting.actionItems = actionDocs.map((action) => action._id);
     await meeting.save();

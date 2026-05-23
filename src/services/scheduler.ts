@@ -51,6 +51,11 @@ export function initScheduler(): void {
 
     for (const item of items) {
       try {
+        if (!item.assigneeEmail) {
+          console.log(`[Scheduler] Reminder skipped for action ${item._id}: no assignee email`);
+          continue;
+        }
+
         await sendActionReminder(
           item.assigneeEmail,
           item.assignee,
