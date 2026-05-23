@@ -82,14 +82,14 @@ router.post(
           const assignee = item.assignee?.trim() || "Unassigned";
 
           return {
-          meetingId: meeting._id,
-          task: item.task?.trim() || "Update task description",
-          assignee,
-          assigneeEmail:
-            item.assigneeEmail?.trim() ||
-            findParticipantEmail(assignee, parsedParticipants) ||
-            defaultAssigneeEmail,
-          dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+            meetingId: meeting._id,
+            task: item.task?.trim() || "Update task description",
+            assignee,
+            assigneeEmail:
+              item.assigneeEmail?.trim() ||
+              findParticipantEmail(assignee, parsedParticipants) ||
+              defaultAssigneeEmail,
+            dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
           };
         }),
       );

@@ -102,16 +102,38 @@ export async function generateMomForRecallBot(botId: string): Promise<void> {
     const host = await User.findById(meeting.owner).lean();
     const defaultAssigneeEmail = fallbackActionEmail(host?.email, meeting.participants);
     const fallbackAssigneeEmails: string[] = [];
+    const actionEmailDebug: Array<{
+      task: string;
+      assignee: string;
+      assigneeEmail: string;
+      source: string;
+      aiAssigneeEmail?: string;
+    }> = [];
     const actionItems = mom.actionItems.map((item) => {
       const assignee = item.assignee?.trim() || "Unassigned";
+      const aiAssigneeEmail = item.assigneeEmail?.trim();
+      const participantEmail = findParticipantEmail(assignee, meeting.participants);
       const assigneeEmail =
-        item.assigneeEmail?.trim() ||
-        findParticipantEmail(assignee, meeting.participants) ||
+        aiAssigneeEmail ||
+        participantEmail ||
         defaultAssigneeEmail;
+      const source = aiAssigneeEmail
+        ? "ai"
+        : participantEmail
+          ? "participant_match"
+          : "fallback";
 
-      if (!item.assigneeEmail?.trim()) {
+      if (!aiAssigneeEmail) {
         fallbackAssigneeEmails.push(`${assignee} <${assigneeEmail}>`);
       }
+
+      actionEmailDebug.push({
+        task: item.task?.trim() || "Update task description",
+        assignee,
+        assigneeEmail,
+        source,
+        aiAssigneeEmail,
+      });
 
       return {
         meetingId: meeting._id,
@@ -120,6 +142,18 @@ export async function generateMomForRecallBot(botId: string): Promise<void> {
         assigneeEmail,
         dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
       };
+    });
+
+    console.log("[MOM automation] action assignee email resolution", {
+      botId,
+      meetingId: meeting._id,
+      hostEmail: host?.email,
+      participants: meeting.participants.map((participant) => ({
+        name: participant.name,
+        email: participant.email,
+      })),
+      defaultAssigneeEmail,
+      actionEmailDebug,
     });
 
     await ActionItem.deleteMany({ meetingId: meeting._id });

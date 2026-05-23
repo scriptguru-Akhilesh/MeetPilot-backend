@@ -73,11 +73,31 @@ export async function sendMOM(
   actions: IActionItem[],
 ): Promise<void> {
   const to = meeting.participants.map((p) => p.email).join(", ");
-  await transporter.sendMail({
+  console.log("[Email] sending participant MOM", {
+    meetingId: meeting._id,
+    title: meeting.title,
+    to,
+    participantEmails: meeting.participants.map((participant) => participant.email),
+    actionAssigneeEmails: actions.map((action) => ({
+      task: action.task,
+      assignee: action.assignee,
+      assigneeEmail: action.assigneeEmail,
+    })),
+  });
+
+  const info = await transporter.sendMail({
     from: `"MOM Generator" <${process.env.SMTP_USER}>`,
     to,
     subject: `MOM: ${meeting.title} • ${new Date(meeting.date).toLocaleDateString()}`,
     html: buildHtml(meeting, actions),
+  });
+
+  console.log("[Email] participant MOM accepted by SMTP", {
+    meetingId: meeting._id,
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
   });
 }
 
@@ -90,7 +110,15 @@ export async function sendTranscriptReadyEmail(
     ? `${process.env.FRONTEND_URL}/meetings/${meeting._id}`
     : "";
 
-  await transporter.sendMail({
+  console.log("[Email] sending host transcript-ready email", {
+    meetingId: meeting._id,
+    title: meeting.title,
+    hostName,
+    hostEmail,
+    meetingUrl,
+  });
+
+  const info = await transporter.sendMail({
     from: `"MOM Generator" <${process.env.SMTP_USER}>`,
     to: hostEmail,
     subject: `Transcript ready: ${meeting.title}`,
@@ -107,6 +135,14 @@ export async function sendTranscriptReadyEmail(
         }
         <p style="margin-top:24px;color:#666;font-size:13px">Participant emails and action items were saved in your MOM dashboard. Participant emails are not sent automatically unless you click Send MOM email.</p>
       </div>`,
+  });
+
+  console.log("[Email] host transcript-ready accepted by SMTP", {
+    meetingId: meeting._id,
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
   });
 }
 
@@ -149,7 +185,14 @@ export async function sendActionReminder(
   task: string,
   dueDate?: Date,
 ): Promise<void> {
-  await transporter.sendMail({
+  console.log("[Email] sending action reminder", {
+    assigneeEmail,
+    assigneeName,
+    task,
+    dueDate,
+  });
+
+  const info = await transporter.sendMail({
     from: `"MOM Reminder" <${process.env.SMTP_USER}>`,
     to: assigneeEmail,
     subject: `Reminder: ${task}`,
@@ -161,5 +204,12 @@ export async function sendActionReminder(
         <p>Due date: <strong>${dueDate?.toLocaleDateString() ?? "Soon"}</strong></p>
         <p>Please update the status in the MOM portal.</p>
       </div>`,
+  });
+
+  console.log("[Email] action reminder accepted by SMTP", {
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response,
   });
 }

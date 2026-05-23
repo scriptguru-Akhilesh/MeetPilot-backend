@@ -17,14 +17,32 @@ router.post("/send/:meetingId", async (req: AuthRequest, res: Response) => {
   const actions = await ActionItem.find({ meetingId: meeting._id });
 
   try {
+    console.log("[Email route] manual MOM send requested", {
+      meetingId: meeting._id,
+      requestedBy: req.user!.id,
+      participantEmails: meeting.participants.map((participant) => participant.email),
+      actionAssigneeEmails: actions.map((action) => ({
+        task: action.task,
+        assignee: action.assignee,
+        assigneeEmail: action.assigneeEmail,
+      })),
+    });
     await sendMOM(meeting as any, actions as any);
     meeting.emailStatus = "sent";
     meeting.momSentAt = new Date();
     await meeting.save();
+    console.log("[Email route] manual MOM send completed", {
+      meetingId: meeting._id,
+      sentAt: meeting.momSentAt,
+    });
     res.json({ success: true, sentAt: meeting.momSentAt });
   } catch (err) {
     meeting.emailStatus = "failed";
     await meeting.save();
+    console.error("[Email route] manual MOM send failed", {
+      meetingId: meeting._id,
+      error: (err as Error).message,
+    });
     res.status(500).json({ error: (err as Error).message });
   }
 });
